@@ -286,6 +286,8 @@ TODO: Needs a wrapper function because split_flags_t is a bare struct
 
 -- Statistics and configuration functions
 
+-- {#enum zpool_status_t as ZpoolStatus {underscoreToCase} deriving (Show, Eq)#}
+
 {#fun zpool_get_config as ^
   { fromZpoolHandle `ZpoolHandle',
     id `Ptr NVList' } -> `NVList' #}
@@ -843,7 +845,7 @@ type ZfsUserspaceCallback a = Ptr a -> CString -> CInt -> CULong -> IO CInt
 
 {#fun zfs_append_partition as ^
   { `CString',
-    `CULong' } -> `ZfsError' makeEnum #}
+    `CULong' } -> `CInt' #}
 
 {#fun zfs_resolve_shortname as ^
   { `CString',
@@ -861,11 +863,11 @@ type ZfsUserspaceCallback a = Ptr a -> CString -> CInt -> CULong -> IO CInt
 {#fun is_mounted as ^
   { fromLibZfsHandle `LibZfsHandle',
     `CString',
-    id `Ptr CString' } -> `Bool' toBool #}
+    alloca- `CString' peek*} -> `Bool' toBool #}
 
 {#fun zfs_is_mounted as ^
   { fromZfsHandle `ZfsHandle',
-    id `Ptr CString' } -> `Bool' toBool #}
+    alloca- `CString' peek*} -> `Bool' toBool #}
 
 {#fun zfs_mount as ^
   { fromZfsHandle `ZfsHandle',
@@ -894,11 +896,11 @@ type ZfsUserspaceCallback a = Ptr a -> CString -> CInt -> CULong -> IO CInt
 -- Protocol-specific share support functions.
 {#fun zfs_is_shared_nfs as ^
   { fromZfsHandle `ZfsHandle',
-    id `Ptr CString' } -> `Bool' toBool #}
+    alloca- `CString' peek*} -> `Bool' toBool #}
 
 {#fun zfs_is_shared_smb as ^
   { fromZfsHandle `ZfsHandle',
-    id `Ptr CString' } -> `Bool' toBool #}
+    alloca- `CString' peek*} -> `Bool' toBool #}
 
 {#fun zfs_share_nfs as ^
   { fromZfsHandle `ZfsHandle' } -> `ZfsError' makeEnum #}
@@ -957,12 +959,13 @@ type ZfsUserspaceCallback a = Ptr a -> CString -> CInt -> CULong -> IO CInt
 
 -- {#fun libzfs_run_process as
 
--- Given a device or file, determine if it is part of a pool.
+-- | Given a device or file, determine if it is part of a pool.
+-- N.B. CInt should be PoolState, except whether it's valid depends on Bool below
 {#fun zpool_in_use as ^
   { fromLibZfsHandle `LibZfsHandle',
     `CInt',
-    alloca- `PoolState' peekEnum*,
-    id `Ptr CString',
+    alloca- `CInt' peek*,
+    alloca- `CString' peek*,
     alloca- `Bool' peekBool* } -> `ZfsError' makeEnum #}
 
 -- Label manipulation
@@ -1026,3 +1029,5 @@ type ZfsUserspaceCallback a = Ptr a -> CString -> CInt -> CULong -> IO CInt
     `CULong',
     `CString' } -> `ZfsError' makeEnum #}
 -}
+
+
