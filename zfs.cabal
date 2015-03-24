@@ -17,11 +17,12 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     ZFS.Sys.FileSystem.ZFS,
-                       ZFS.Sys.AVL,
-                       ZFS.Sys.NVPair,
+  exposed-modules:     ZFS.Primitive.FS,
+                       ZFS.Primitive.AVL,
+                       ZFS.Primitive.NVPair,
                        ZFS.Primitive,
-                       ZFS
+                       ZFS,
+                       Sample
   -- other-modules:       
   -- other-extensions:    CPP
   -- c2hs-options:        --cppopts

@@ -1,4 +1,4 @@
-module ZFS.Sys.AVL where
+module ZFS.Primitive.AVL where
 import Foreign
 import Foreign.C
 

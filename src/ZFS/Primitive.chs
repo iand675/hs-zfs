@@ -5,9 +5,9 @@ import Foreign.C
 import Foreign.Ptr
 import Foreign.Marshal
 import Foreign.Marshal.Utils
-{#import ZFS.Sys.AVL #}
-{#import ZFS.Sys.FileSystem.ZFS #}
-{#import ZFS.Sys.NVPair #}
+{#import ZFS.Primitive.AVL #}
+{#import ZFS.Primitive.FS #}
+{#import ZFS.Primitive.NVPair #} hiding (peekBool)
 
 #define HAVE_IOCTL_IN_SYS_IOCTL_H
 #include <libzfs.h>
@@ -33,23 +33,23 @@ default_import_path_size = {#const DEFAULT_IMPORT_PATH_SIZE #}
 -- zpool_default_import_path :: 
 
 -- libzfs errors
-{#enum zfs_error as ZfsError {underscoreToCase} deriving (Show, Eq)#}
+{#enum zfs_error as ZFSError {underscoreToCase} deriving (Show, Eq)#}
 
-{#pointer *zfs_perm_node as ZfsPermNode newtype #}
-{#pointer *zfs_allow_node as ZfsAllowNode newtype #}
-{#pointer *zfs_allow as ZfsAllow newtype #}
+{#pointer *zfs_perm_node as ZFSPermNode newtype #}
+{#pointer *zfs_allow_node as ZFSAllowNode newtype #}
+{#pointer *zfs_allow as ZFSAllow newtype #}
 
-{#pointer *zfs_handle as ZfsHandle newtype #}
-{#pointer *zpool_handle as ZpoolHandle newtype #}
-{#pointer *libzfs_handle as LibZfsHandle newtype #}
+{#pointer *zfs_handle as ZFSHandle newtype #}
+{#pointer *zpool_handle as ZPoolHandle newtype #}
+{#pointer *libzfs_handle as LibZFSHandle newtype #}
 
-toZfsHandle = ZfsHandle . castPtr
-toZpoolHandle = ZpoolHandle . castPtr
-toLibZfsHandle = LibZfsHandle . castPtr
+toZFSHandle = ZFSHandle . castPtr
+toZPoolHandle = ZPoolHandle . castPtr
+toLibZFSHandle = LibZFSHandle . castPtr
 
-fromZfsHandle (ZfsHandle p) = castPtr p
-fromZpoolHandle (ZpoolHandle p) = castPtr p
-fromLibZfsHandle (LibZfsHandle p) = castPtr p
+fromZFSHandle (ZFSHandle p) = castPtr p
+fromZPoolHandle (ZPoolHandle p) = castPtr p
+fromLibZFSHandle (LibZFSHandle p) = castPtr p
 
 makeEnum :: (Integral a, Enum b) => a -> b
 makeEnum = toEnum . fromIntegral
@@ -61,215 +61,215 @@ peekBool :: Ptr CInt -> IO Bool
 peekBool = fmap toBool . peek
 
 -- Library initialization
-{#fun libzfs_init as ^
-  {} -> `LibZfsHandle' toLibZfsHandle #}
+{#fun libzfs_init 
+  {} -> `LibZFSHandle' toLibZFSHandle #}
 
-{#fun libzfs_fini as ^
-  {fromLibZfsHandle `LibZfsHandle'} -> `()' #}
+{#fun libzfs_fini 
+  {fromLibZFSHandle `LibZFSHandle'} -> `()' #}
 
-{#fun zpool_get_handle as ^
-  {fromZpoolHandle `ZpoolHandle'} -> `LibZfsHandle' toLibZfsHandle #}
+{#fun zpool_get_handle 
+  {fromZPoolHandle `ZPoolHandle'} -> `LibZFSHandle' toLibZFSHandle #}
 
-{#fun zfs_get_handle as ^
-  {fromZfsHandle `ZfsHandle'} -> `LibZfsHandle' toLibZfsHandle #}
+{#fun zfs_get_handle 
+  {fromZFSHandle `ZFSHandle'} -> `LibZFSHandle' toLibZFSHandle #}
 
-{#fun libzfs_print_on_error as ^
-  {fromLibZfsHandle `LibZfsHandle',
+{#fun libzfs_print_on_error 
+  {fromLibZFSHandle `LibZFSHandle',
    `Bool'} -> `()' #}
 
 -- | Concatenates all arguments into output string. Args: arg count, args, output string, output string length.
-{#fun zfs_save_arguments as ^
+{#fun zfs_save_arguments 
   {`Int',
    id `Ptr CString',
    `CString',
    `Int'} -> `()' #}
 
 -- | Add message to zpool log
-{#fun zpool_log_history as ^
-  { fromLibZfsHandle `LibZfsHandle'
-  , id `CString' } -> `ZfsError' makeEnum #}
+{#fun zpool_log_history 
+  { fromLibZFSHandle `LibZFSHandle'
+  , id `CString' } -> `ZFSError' makeEnum #}
 
-{#fun libzfs_errno as ^
-  { fromLibZfsHandle `LibZfsHandle' } -> `ZfsError' makeEnum #}
+{#fun libzfs_errno 
+  { fromLibZFSHandle `LibZFSHandle' } -> `ZFSError' makeEnum #}
 
-{#fun libzfs_error_action as ^
-  { fromLibZfsHandle `LibZfsHandle' } -> `CString' #}
+{#fun libzfs_error_action 
+  { fromLibZFSHandle `LibZFSHandle' } -> `CString' #}
 
-{#fun libzfs_error_description as ^
-  { fromLibZfsHandle `LibZfsHandle' } -> `CString' #}
+{#fun libzfs_error_description 
+  { fromLibZFSHandle `LibZFSHandle' } -> `CString' #}
 
-{#fun libzfs_mnttab_init as ^
-  { fromLibZfsHandle `LibZfsHandle' } -> `()' #}
+{#fun libzfs_mnttab_init 
+  { fromLibZFSHandle `LibZFSHandle' } -> `()' #}
 
-{#fun libzfs_mnttab_fini as ^
-  { fromLibZfsHandle `LibZfsHandle' } -> `()' #}
+{#fun libzfs_mnttab_fini 
+  { fromLibZFSHandle `LibZFSHandle' } -> `()' #}
 
-{#fun libzfs_mnttab_cache as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun libzfs_mnttab_cache 
+  { fromLibZFSHandle `LibZFSHandle',
     `Bool' } -> `()' #}
 
 {#pointer *mnttab as MountTable newtype #}
 
-{#fun libzfs_mnttab_find as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun libzfs_mnttab_find 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
-    `MountTable' } -> `ZfsError' makeEnum #}
+    `MountTable' } -> `ZFSError' makeEnum #}
 
-{#fun libzfs_mnttab_add as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun libzfs_mnttab_add 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     `CString',
     `CString' } -> `()' #}
 
-{#fun libzfs_mnttab_remove as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun libzfs_mnttab_remove 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString' } -> `()' #}
 
 -- Basic handle functions
 
-{#fun zpool_open as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    `CString' } -> `ZpoolHandle' toZpoolHandle #}
+{#fun zpool_open 
+  { fromLibZFSHandle `LibZFSHandle',
+    `CString' } -> `ZPoolHandle' toZPoolHandle #}
 
-{#fun zpool_open_canfail as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    `CString' } -> `ZpoolHandle' toZpoolHandle #}
+{#fun zpool_open_canfail 
+  { fromLibZFSHandle `LibZFSHandle',
+    `CString' } -> `ZPoolHandle' toZPoolHandle #}
 
-{#fun zpool_close as ^
-  { fromZpoolHandle `ZpoolHandle' } -> `()' #}
+{#fun zpool_close 
+  { fromZPoolHandle `ZPoolHandle' } -> `()' #}
 
-{#fun zpool_get_name as ^
-  { fromZpoolHandle `ZpoolHandle' } -> `CString' #}
+{#fun zpool_get_name 
+  { fromZPoolHandle `ZPoolHandle' } -> `CString' #}
 
-{#fun zpool_get_state as ^
-  { fromZpoolHandle `ZpoolHandle' } -> `PoolState' makeEnum #}
+{#fun zpool_get_state 
+  { fromZPoolHandle `ZPoolHandle' } -> `PoolState' makeEnum #}
 
 -- {#fun zpool_state_to_name
 -- zpool_pool_state_to_name
 
 -- Iterate over all active pools in the system
-{#fun zpool_free_handles as ^
-  { fromLibZfsHandle `LibZfsHandle' } -> `()' #}
+{#fun zpool_free_handles 
+  { fromLibZFSHandle `LibZFSHandle' } -> `()' #}
 
-type ZpoolIterator a = ZpoolHandle -> Ptr a -> IO CInt
+type ZPoolIterator a = ZPoolHandle -> Ptr a -> IO CInt
 
 foreign import ccall "wrapper"
-  wrapZPoolIterator :: ZpoolIterator a -> IO (FunPtr (ZpoolIterator a))
+  wrapZPoolIterator :: ZPoolIterator a -> IO (FunPtr (ZPoolIterator a))
 
-{#fun zpool_iter as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    castFunPtr `FunPtr (ZpoolIterator a)',
+{#fun zpool_iter 
+  { fromLibZFSHandle `LibZFSHandle',
+    castFunPtr `FunPtr (ZPoolIterator a)',
     castPtr `Ptr a' } -> `CInt' #}
 
 -- Functions to create and destroy pools
-{#fun zpool_create as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zpool_create 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     `NVList',
     `NVList',
-    `NVList' } -> `ZfsError' makeEnum #}
+    `NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_destroy as ^
-  { fromZpoolHandle `ZpoolHandle',
-    `CString' } -> `ZfsError' makeEnum #}
+{#fun zpool_destroy 
+  { fromZPoolHandle `ZPoolHandle',
+    `CString' } -> `ZFSError' makeEnum #}
 
 {#pointer *splitflags_t as SplitFlags newtype #}
 
 -- Functions to manipulate pool and vdev state
-{#fun zpool_scan as ^
-  { fromZpoolHandle `ZpoolHandle',
-    `PoolScanFunction' } -> `ZfsError' makeEnum #}
+{#fun zpool_scan 
+  { fromZPoolHandle `ZPoolHandle',
+    `PoolScanFunction' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_clear as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_clear 
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
-    `NVList' } -> `ZfsError' makeEnum #}
+    `NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_reguid as ^
-  { fromZpoolHandle `ZpoolHandle' } -> `ZfsError' makeEnum #}
+{#fun zpool_reguid 
+  { fromZPoolHandle `ZPoolHandle' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_reopen as ^
-  { fromZpoolHandle `ZpoolHandle' } -> `ZfsError' makeEnum #}
+{#fun zpool_reopen 
+  { fromZPoolHandle `ZPoolHandle' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_vdev_online as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_vdev_online 
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
     `Int',
-    alloca- `VirtualDeviceState' peekEnum*} -> `ZfsError' makeEnum #}
+    alloca- `VirtualDeviceState' peekEnum*} -> `ZFSError' makeEnum #}
 
-{#fun zpool_vdev_offline as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_vdev_offline 
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_vdev_attach as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_vdev_attach 
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
     `CString',
     `NVList',
-    `CInt' } -> `ZfsError' makeEnum #}
+    `CInt' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_vdev_detach as ^
-  { fromZpoolHandle `ZpoolHandle',
-    `CString' } -> `ZfsError' makeEnum #}
+{#fun zpool_vdev_detach 
+  { fromZPoolHandle `ZPoolHandle',
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_vdev_remove as ^
-  { fromZpoolHandle `ZpoolHandle',
-    `CString' } -> `ZfsError' makeEnum #}
+{#fun zpool_vdev_remove 
+  { fromZPoolHandle `ZPoolHandle',
+    `CString' } -> `ZFSError' makeEnum #}
 
 {-
 TODO: Needs a wrapper function because split_flags_t is a bare struct
 {#fun zpool_vdev_split
-  { fromZpoolHandle `ZpoolHandle',
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
     `Ptr NVList',
     `NVList',
-    % `SplitFlags' } -> `ZfsError' makeEnum #}
+    % `SplitFlags' } -> `ZFSError' makeEnum #}
 -}
 
-{#fun zpool_vdev_fault as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_vdev_fault 
+  { fromZPoolHandle `ZPoolHandle',
     `CULong',
-    `VirtualDeviceAuxilliaryState' } -> `ZfsError' makeEnum #}
+    `VirtualDeviceAuxilliaryState' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_vdev_degrade as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_vdev_degrade 
+  { fromZPoolHandle `ZPoolHandle',
     `CULong',
-    `VirtualDeviceAuxilliaryState' } -> `ZfsError' makeEnum #}
+    `VirtualDeviceAuxilliaryState' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_vdev_clear as ^
-  { fromZpoolHandle `ZpoolHandle',
-    `CULong' } -> `ZfsError' makeEnum #}
+{#fun zpool_vdev_clear 
+  { fromZPoolHandle `ZPoolHandle',
+    `CULong' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_find_vdev as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_find_vdev 
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
     alloca- `Bool' peekBool*,
     alloca- `Bool' peekBool*,
     alloca- `Bool' peekBool*} -> `NVList' #}
 
-{#fun zpool_find_vdev_by_physpath as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_find_vdev_by_physpath 
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
     alloca- `Bool' peekBool*,
     alloca- `Bool' peekBool*,
     alloca- `Bool' peekBool*} -> `NVList' #}
 
-{#fun zpool_label_disk_wait as ^
+{#fun zpool_label_disk_wait 
   { `CString',
-    `Int' } -> `ZfsError' makeEnum #}
+    `Int' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_label_disk as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    fromZpoolHandle `ZpoolHandle',
-    `CString' } -> `ZfsError' makeEnum #}
+{#fun zpool_label_disk 
+  { fromLibZFSHandle `LibZFSHandle',
+    fromZPoolHandle `ZPoolHandle',
+    `CString' } -> `ZFSError' makeEnum #}
 
 -- Functions to manage pool properties
 
-{#fun zpool_set_prop as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_set_prop 
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
-    `CString' } -> `ZfsError' makeEnum #}
+    `CString' } -> `ZFSError' makeEnum #}
 
 -- zpool_get_prop
 -- zpool_get_prop_literal
@@ -278,7 +278,7 @@ TODO: Needs a wrapper function because split_flags_t is a bare struct
 -- zpool_prop_values
 
 -- Pool health statistics
-{#enum zpool_status_t as ZpoolStatus {underscoreToCase} deriving (Show, Eq)#}
+{#enum zpool_status_t as ZPoolStatus {underscoreToCase} deriving (Show, Eq)#}
 
 -- zpool_get_status
 -- zpool_import_status
@@ -286,280 +286,280 @@ TODO: Needs a wrapper function because split_flags_t is a bare struct
 
 -- Statistics and configuration functions
 
--- {#enum zpool_status_t as ZpoolStatus {underscoreToCase} deriving (Show, Eq)#}
+-- {#enum zpool_status_t as ZPoolStatus {underscoreToCase} deriving (Show, Eq)#}
 
-{#fun zpool_get_config as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_get_config 
+  { fromZPoolHandle `ZPoolHandle',
     id `Ptr NVList' } -> `NVList' #}
 
-{#fun zpool_get_features as ^
-  { fromZpoolHandle `ZpoolHandle' } -> `NVList' #}
+{#fun zpool_get_features 
+  { fromZPoolHandle `ZPoolHandle' } -> `NVList' #}
 
-{#fun zpool_refresh_stats as ^
-  { fromZpoolHandle `ZpoolHandle',
-    alloca- `Bool' peekBool* } -> `ZfsError' makeEnum #}
+{#fun zpool_refresh_stats 
+  { fromZPoolHandle `ZPoolHandle',
+    alloca- `Bool' peekBool* } -> `ZFSError' makeEnum #}
 
-{#fun zpool_get_errlog as ^
-  { fromZpoolHandle `ZpoolHandle',
-    id `Ptr NVList' } -> `ZfsError' makeEnum #}
+{#fun zpool_get_errlog 
+  { fromZPoolHandle `ZPoolHandle',
+    id `Ptr NVList' } -> `ZFSError' makeEnum #}
 
 -- Import and export functions
 
-{#fun zpool_export as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_export 
+  { fromZPoolHandle `ZPoolHandle',
     `Bool',
-    `CString' } -> `ZfsError' makeEnum #}
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_export_force as ^
-  { fromZpoolHandle `ZpoolHandle',
-    `CString' } -> `ZfsError' makeEnum #}
+{#fun zpool_export_force 
+  { fromZPoolHandle `ZPoolHandle',
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_import as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zpool_import 
+  { fromLibZFSHandle `LibZFSHandle',
     `NVList',
     `CString',
-    `CString' } -> `ZfsError' makeEnum #}
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_import_props as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zpool_import_props 
+  { fromLibZFSHandle `LibZFSHandle',
     `NVList',
     `CString',
     `NVList',
-    `Int' } -> `ZfsError' makeEnum #}
+    `Int' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_print_unsup_feat as ^
+{#fun zpool_print_unsup_feat 
   { `NVList' } -> `()' #}
 
 -- Search for pools to import
 
 {#pointer *importargs_t as ImportArgs newtype #}
 
-{#fun zpool_search_import as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zpool_search_import 
+  { fromLibZFSHandle `LibZFSHandle',
     `ImportArgs' } -> `NVList' #}
 
 -- Legacy pool search routines would go here, but skipping them for now.
 
 -- Miscellaneous pool functions
-{#pointer *zfs_cmd as ZfsCommand newtype #}
+{#pointer *zfs_cmd as ZFSCommand newtype #}
 
-toZfsCommand = ZfsCommand . castPtr
-fromZfsCommand (ZfsCommand p) = castPtr p
+toZFSCommand = ZFSCommand . castPtr
+fromZFSCommand (ZFSCommand p) = castPtr p
 
 -- zfs_history_event_names
-{#fun zpool_vdev_name as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    fromZpoolHandle `ZpoolHandle',
+{#fun zpool_vdev_name 
+  { fromLibZFSHandle `LibZFSHandle',
+    fromZPoolHandle `ZPoolHandle',
     `NVList',
     `Bool' } -> `CString' #}
 
-{#fun zpool_upgrade as ^
-  { fromZpoolHandle `ZpoolHandle',
-    `Word64' } -> `ZfsError' makeEnum #}
+{#fun zpool_upgrade 
+  { fromZPoolHandle `ZPoolHandle',
+    `Word64' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_get_history as ^
-  { fromZpoolHandle `ZpoolHandle',
-    id `Ptr NVList' } -> `ZfsError' makeEnum #}
+{#fun zpool_get_history 
+  { fromZPoolHandle `ZPoolHandle',
+    id `Ptr NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_history_unpack as ^
+{#fun zpool_history_unpack 
   { `CString',
     `CULong',
     alloca- `CULong' peek*,
     id `Ptr (Ptr NVList)',
-    alloca- `CUInt' peek*} -> `ZfsError' makeEnum #}
+    alloca- `CUInt' peek*} -> `ZFSError' makeEnum #}
 
-{#fun zpool_events_next as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zpool_events_next 
+  { fromLibZFSHandle `LibZFSHandle',
     id `Ptr NVList',
     alloca- `CInt' peek*,
     `CUInt',
-    `CInt' } -> `ZfsError' makeEnum #}
+    `CInt' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_events_clear as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    alloca- `CInt' peek* } -> `ZfsError' makeEnum #}
+{#fun zpool_events_clear 
+  { fromLibZFSHandle `LibZFSHandle',
+    alloca- `CInt' peek* } -> `ZFSError' makeEnum #}
 
-{#fun zpool_events_seek as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zpool_events_seek 
+  { fromLibZFSHandle `LibZFSHandle',
     `CULong',
-    `CInt' } -> `ZfsError' makeEnum #}
+    `CInt' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_obj_to_path as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_obj_to_path 
+  { fromZPoolHandle `ZPoolHandle',
     `CULong',
     `CULong',
     `CString',
     `CULong' } -> `()' #}
 
-{#fun zfs_ioctl as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_ioctl 
+  { fromLibZFSHandle `LibZFSHandle',
     `CInt',
-    `ZfsCommand' } -> `ZfsError' makeEnum #}
+    `ZFSCommand' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_get_physpath as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_get_physpath 
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
-    `CULong' } -> `ZfsError' makeEnum #}
+    `CULong' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_explain_recover as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zpool_explain_recover 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     `CInt',
     `NVList' } -> `()' #}
 
 -- Basic handle manipulations. These functions do not create or destroy the
 -- underlying datasets, only the references to them.
-{#fun zfs_open as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_open 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
-    `CInt' } -> `ZfsHandle' toZfsHandle #}
+    `CInt' } -> `ZFSHandle' toZFSHandle #}
 
-{#fun zfs_handle_dup as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZfsHandle' toZfsHandle #}
+{#fun zfs_handle_dup 
+  { fromZFSHandle `ZFSHandle' } -> `ZFSHandle' toZFSHandle #}
 
-{#fun zfs_close as ^
-  { fromZfsHandle `ZfsHandle' } -> `()' #}
+{#fun zfs_close 
+  { fromZFSHandle `ZFSHandle' } -> `()' #}
 
 -- {#fun zfs_get_type 
-{#fun zfs_get_name as ^
-  { fromZfsHandle `ZfsHandle' } -> `CString' #}
+{#fun zfs_get_name 
+  { fromZFSHandle `ZFSHandle' } -> `CString' #}
 
-{#fun zfs_get_pool_handle as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZpoolHandle' toZpoolHandle #}
+{#fun zfs_get_pool_handle 
+  { fromZFSHandle `ZFSHandle' } -> `ZPoolHandle' toZPoolHandle #}
 
 -- Property management functions. Some functions are shared with the kernel,
 -- and are found in sys/fs/zfs.h
 
 -- zfs dataset property management
-{#fun zfs_prop_default_string as ^
-  { `ZfsProp' } -> `CString' #}
+{#fun zfs_prop_default_string 
+  { `ZFSProp' } -> `CString' #}
 
-{#fun zfs_prop_default_numeric as ^
-  { `ZfsProp' } -> `CULong' #}
+{#fun zfs_prop_default_numeric 
+  { `ZFSProp' } -> `CULong' #}
 
-{#fun zfs_prop_column_name as ^
-  { `ZfsProp' } -> `CString' #}
+{#fun zfs_prop_column_name 
+  { `ZFSProp' } -> `CString' #}
 
-{#fun zfs_prop_align_right as ^
-  { `ZfsProp' } -> `Bool' #}
+{#fun zfs_prop_align_right 
+  { `ZFSProp' } -> `Bool' #}
 
-{#fun zfs_valid_proplist as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    `ZfsType',
+{#fun zfs_valid_proplist 
+  { fromLibZFSHandle `LibZFSHandle',
+    `ZFSType',
     `NVList',
     `CULong',
-    fromZfsHandle `ZfsHandle',
+    fromZFSHandle `ZFSHandle',
     `CString' } -> `NVList' #}
 
-{#fun zfs_prop_to_name as ^
-  { `ZfsProp' } -> `CString' #}
+{#fun zfs_prop_to_name 
+  { `ZFSProp' } -> `CString' #}
 
-{#fun zfs_prop_set as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_prop_set 
+  { fromZFSHandle `ZFSHandle',
     `CString',
-    `CString' } -> `ZfsError' makeEnum #}
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_prop_get as ^
-  { fromZfsHandle `ZfsHandle',
-    `ZfsProp',
+{#fun zfs_prop_get 
+  { fromZFSHandle `ZFSHandle',
+    `ZFSProp',
     `CString',
     `CULong',
-    alloca- `ZpropSource',
+    alloca- `ZPropSource',
     `CString',
     `CULong',
-    `Bool'} -> `ZfsError' makeEnum #}
+    `Bool'} -> `ZFSError' makeEnum #}
 
-{#fun zfs_prop_get_recvd as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_prop_get_recvd 
+  { fromZFSHandle `ZFSHandle',
     `CString',
     `CString',
     `CULong',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_prop_get_numeric as ^
-  { fromZfsHandle `ZfsHandle',
-    `ZpropSource',
+{#fun zfs_prop_get_numeric 
+  { fromZFSHandle `ZFSHandle',
+    `ZPropSource',
     alloca- `CULong' peek*,
-    alloca- `ZpropSource' peekEnum*,
+    alloca- `ZPropSource' peekEnum*,
     `CString',
-    `CULong' } -> `ZfsError' makeEnum #}
+    `CULong' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_prop_get_userquota_int as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_prop_get_userquota_int 
+  { fromZFSHandle `ZFSHandle',
     `CString',
-    alloca- `CULong' peek* } -> `ZfsError' makeEnum #}
+    alloca- `CULong' peek* } -> `ZFSError' makeEnum #}
 
-{#fun zfs_prop_get_userquota as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_prop_get_userquota 
+  { fromZFSHandle `ZFSHandle',
     `CString',
     `CString',
     `CInt',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_prop_get_written_int as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_prop_get_written_int 
+  { fromZFSHandle `ZFSHandle',
     `CString',
-    alloca- `CULong' peek* } -> `ZfsError' makeEnum #}
+    alloca- `CULong' peek* } -> `ZFSError' makeEnum #}
 
-{#fun zfs_prop_get_written as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_prop_get_written 
+  { fromZFSHandle `ZFSHandle',
     `CString',
     `CString',
     `CInt',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
 {-
-{#fun zfs_prop_get_feature as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_prop_get_feature 
+  { fromZFSHandle `ZFSHandle',
     `CString',
     `CString',
-    `CULong' } -> `ZfsError' makeEnum #}
+    `CULong' } -> `ZFSError' makeEnum #}
 -}
 
-{#fun getprop_uint64 as ^
-  { fromZfsHandle `ZfsHandle',
-    `ZfsProp',
+{#fun getprop_uint64 
+  { fromZFSHandle `ZFSHandle',
+    `ZFSProp',
     id `Ptr CString' } -> `CULong' #}
 
-{#fun zfs_prop_get_int as ^
-  { fromZfsHandle `ZfsHandle',
-    `ZfsProp' } -> `CULong' #}
+{#fun zfs_prop_get_int 
+  { fromZFSHandle `ZFSHandle',
+    `ZFSProp' } -> `CULong' #}
 
-{#fun zfs_prop_inherit as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_prop_inherit 
+  { fromZFSHandle `ZFSHandle',
     `CString',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_prop_values as ^
-  { `ZfsProp' } -> `CString' #}
+{#fun zfs_prop_values 
+  { `ZFSProp' } -> `CString' #}
 
-{#fun zfs_prop_is_string as ^
-  { `ZfsProp' } -> `Bool' #}
+{#fun zfs_prop_is_string 
+  { `ZFSProp' } -> `Bool' #}
 
-{#fun zfs_get_user_props as ^
-  { fromZfsHandle `ZfsHandle' } -> `NVList' #}
+{#fun zfs_get_user_props 
+  { fromZFSHandle `ZFSHandle' } -> `NVList' #}
 
 {-
-{#fun zfs_get_recvd_props as ^
-  { fromZfsHandle `ZfsHandle' } -> `NVList' #}
+{#fun zfs_get_recvd_props 
+  { fromZFSHandle `ZFSHandle' } -> `NVList' #}
 -}
 
-{#fun zfs_get_clones_nvl as ^
-  { fromZfsHandle `ZfsHandle' } -> `NVList' #}
+{#fun zfs_get_clones_nvl 
+  { fromZFSHandle `ZFSHandle' } -> `NVList' #}
 
-{#pointer *zprop_list_t as ZpropList newtype #}
+{#pointer *zprop_list_t as ZPropList newtype #}
 
-toZpropList = ZpropList . castPtr
-fromZpropList (ZpropList p) = castPtr p
+toZPropList = ZPropList . castPtr
+fromZPropList (ZPropList p) = castPtr p
 
-{#fun zfs_expand_proplist as ^
-  { fromZfsHandle `ZfsHandle',
-    id `Ptr ZpropList',
+{#fun zfs_expand_proplist 
+  { fromZFSHandle `ZFSHandle',
+    id `Ptr ZPropList',
     `Bool',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_prune_proplist as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_prune_proplist 
+  { fromZFSHandle `ZFSHandle',
     alloca- `CUChar' peek* } -> `()' #}
 
 zfs_mountpoint_none = {#const ZFS_MOUNTPOINT_NONE #}
@@ -574,383 +574,383 @@ zfs_unsupported_readonly = {#const ZFS_UNSUPPORTED_READONLY #}
 
 -- zpool property management
 
-{#fun zpool_expand_proplist as ^
-  { fromZpoolHandle `ZpoolHandle',
-    id `Ptr ZpropList' } -> `ZfsError' makeEnum #}
+{#fun zpool_expand_proplist 
+  { fromZPoolHandle `ZPoolHandle',
+    id `Ptr ZPropList' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_prop_get_feature as ^
-  { fromZpoolHandle `ZpoolHandle',
+{#fun zpool_prop_get_feature 
+  { fromZPoolHandle `ZPoolHandle',
     `CString',
     `CString',
-    `CULong' } -> `ZfsError' makeEnum #}
+    `CULong' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_prop_default_string as ^
-  { `ZpoolProp' } -> `CString' #}
+{#fun zpool_prop_default_string 
+  { `ZPoolProp' } -> `CString' #}
 
-{#fun zpool_prop_default_numeric as ^
-  { `ZpoolProp' } -> `CULong' #}
+{#fun zpool_prop_default_numeric 
+  { `ZPoolProp' } -> `CULong' #}
 
-{#fun zpool_prop_column_name as ^
-  { `ZpoolProp' } -> `CString' #}
+{#fun zpool_prop_column_name 
+  { `ZPoolProp' } -> `CString' #}
 
-{#fun zpool_prop_align_right as ^
-  { `ZpoolProp' } -> `Bool' #}
+{#fun zpool_prop_align_right 
+  { `ZPoolProp' } -> `Bool' #}
 
 -- Functions shared by zfs and zpool property management
 
-{#fun zprop_iter as ^
-  { castFunPtr `FunPtr (ZpropFunction a)',
+{#fun zprop_iter 
+  { castFunPtr `FunPtr (ZPropFunction a)',
     castPtr `Ptr a',
     `Bool',
     `Bool',
-    `ZfsType' } -> `ZfsError' makeEnum #}
+    `ZFSType' } -> `ZFSError' makeEnum #}
 
-{#fun zprop_get_list as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zprop_get_list 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
-    id `Ptr ZpropList',
-    `ZfsType' } -> `ZfsError' makeEnum #}
+    id `Ptr ZPropList',
+    `ZFSType' } -> `ZFSError' makeEnum #}
 
-{#fun zprop_free_list as ^
-  { `ZpropList' } -> `()' #}
+{#fun zprop_free_list 
+  { `ZPropList' } -> `()' #}
 
 zfs_get_ncols = {#const ZFS_GET_NCOLS #}
 
-{#enum zfs_get_column_t as ZfsGetColumn {underscoreToCase} deriving (Show, Eq) #}
+{#enum zfs_get_column_t as ZFSGetColumn {underscoreToCase} deriving (Show, Eq) #}
 
-{#pointer *zprop_get_cbdata_t as ZpropGetCbdata newtype #}
+{#pointer *zprop_get_cbdata_t as ZPropGetCbdata newtype #}
 
-{#fun zprop_print_one_property as ^
+{#fun zprop_print_one_property 
   { `CString',
-    `ZpropGetCbdata',
+    `ZPropGetCbdata',
     `CString',
     `CString',
-    `ZpropSource',
+    `ZPropSource',
     `CString',
     `CString' } -> `()' #}
 
-type ZfsIterFunction a = ZfsHandle -> Ptr a -> CInt
+type ZFSIterFunction a = ZFSHandle -> Ptr a -> CInt
 
-{#fun zfs_iter_root as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    castFunPtr `FunPtr (ZfsIterFunction a)',
-    castPtr `Ptr a' } -> `ZfsError' makeEnum #}
+{#fun zfs_iter_root 
+  { fromLibZFSHandle `LibZFSHandle',
+    castFunPtr `FunPtr (ZFSIterFunction a)',
+    castPtr `Ptr a' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_iter_children as ^
-  { fromZfsHandle `ZfsHandle',
-    castFunPtr `FunPtr (ZfsIterFunction a)',
-    castPtr `Ptr a' } -> `ZfsError' makeEnum #}
+{#fun zfs_iter_children 
+  { fromZFSHandle `ZFSHandle',
+    castFunPtr `FunPtr (ZFSIterFunction a)',
+    castPtr `Ptr a' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_iter_dependents as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_iter_dependents 
+  { fromZFSHandle `ZFSHandle',
     `Bool',
-    castFunPtr `FunPtr (ZfsIterFunction a)',
-    castPtr `Ptr a' } -> `ZfsError' makeEnum #}
+    castFunPtr `FunPtr (ZFSIterFunction a)',
+    castPtr `Ptr a' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_iter_filesystems as ^
-  { fromZfsHandle `ZfsHandle',
-    castFunPtr `FunPtr (ZfsIterFunction a)',
-    castPtr `Ptr a' } -> `ZfsError' makeEnum #}
+{#fun zfs_iter_filesystems 
+  { fromZFSHandle `ZFSHandle',
+    castFunPtr `FunPtr (ZFSIterFunction a)',
+    castPtr `Ptr a' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_iter_snapshots as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_iter_snapshots 
+  { fromZFSHandle `ZFSHandle',
     `Bool',
-    castFunPtr `FunPtr (ZfsIterFunction a)',
-    castPtr `Ptr a' } -> `ZfsError' makeEnum #}
+    castFunPtr `FunPtr (ZFSIterFunction a)',
+    castPtr `Ptr a' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_iter_snapshots_sorted as ^
-  { fromZfsHandle `ZfsHandle',
-    castFunPtr `FunPtr (ZfsIterFunction a)',
-    castPtr `Ptr a' } -> `ZfsError' makeEnum #}
+{#fun zfs_iter_snapshots_sorted 
+  { fromZFSHandle `ZFSHandle',
+    castFunPtr `FunPtr (ZFSIterFunction a)',
+    castPtr `Ptr a' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_iter_snapspec as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_iter_snapspec 
+  { fromZFSHandle `ZFSHandle',
     `CString',
-    castFunPtr `FunPtr (ZfsIterFunction a)',
-    castPtr `Ptr a' } -> `ZfsError' makeEnum #}
+    castFunPtr `FunPtr (ZFSIterFunction a)',
+    castPtr `Ptr a' } -> `ZFSError' makeEnum #}
 
 {#pointer *get_all_cb_t as GetAllCallback newtype #}
 
-{#fun libzfs_add_handle as ^
+{#fun libzfs_add_handle 
   { `GetAllCallback',
-    fromZfsHandle `ZfsHandle' } -> `()' #}
+    fromZFSHandle `ZFSHandle' } -> `()' #}
 
-{#fun libzfs_dataset_cmp as ^
+{#fun libzfs_dataset_cmp 
   { `Ptr ()',
     `Ptr ()' } -> `CInt' #}
 
 -- Functions to create and destroy datasets
 
-{#fun zfs_create as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_create 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
-    `ZfsType',
-    `NVList' } -> `ZfsError' makeEnum #}
+    `ZFSType',
+    `NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_create_ancestors as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    `CString' } -> `ZfsError' makeEnum #}
+{#fun zfs_create_ancestors 
+  { fromLibZFSHandle `LibZFSHandle',
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_destroy as ^
-  { fromZfsHandle `ZfsHandle',
-    `Bool' } -> `ZfsError' makeEnum #}
+{#fun zfs_destroy 
+  { fromZFSHandle `ZFSHandle',
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_destroy_snaps as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_destroy_snaps 
+  { fromZFSHandle `ZFSHandle',
     `CString',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_destroy_snaps_nvl as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_destroy_snaps_nvl 
+  { fromLibZFSHandle `LibZFSHandle',
     `NVList',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_clone as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_clone 
+  { fromZFSHandle `ZFSHandle',
     `CString',
-    `NVList' } -> `ZfsError' makeEnum #}
+    `NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_snapshot as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_snapshot 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     `Bool',
-    `NVList' } -> `ZfsError' makeEnum #}
+    `NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_snapshot_nvl as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_snapshot_nvl 
+  { fromLibZFSHandle `LibZFSHandle',
     `NVList',
-    `NVList' } -> `ZfsError' makeEnum #}
+    `NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_rollback as ^
-  { fromZfsHandle `ZfsHandle',
-    fromZfsHandle `ZfsHandle',
-    `Bool' } -> `ZfsError' makeEnum #}
+{#fun zfs_rollback 
+  { fromZFSHandle `ZFSHandle',
+    fromZFSHandle `ZFSHandle',
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_rename as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_rename 
+  { fromZFSHandle `ZFSHandle',
     `CString',
     `Bool',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
 {#pointer *sendflags_t as SendFlags newtype #}
 
 type PrimitiveSnapfilter = FunPtr (Ptr () -> Ptr () -> IO CInt)
-type SnapfilterCallback a = ZfsHandle -> Ptr a -> IO Bool
+type SnapfilterCallback a = ZFSHandle -> Ptr a -> IO Bool
 
-castSnapfilterCallback f = \handle val -> fmap fromBool $ f (toZfsHandle handle) (castPtr val)
+castSnapfilterCallback f = \handle val -> fmap fromBool $ f (toZFSHandle handle) (castPtr val)
 
 {-
-{#fun zfs_send as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_send 
+  { fromZFSHandle `ZFSHandle',
     `CString',
     `CString',
     `SendFlags',
     `CInt',
     id `PrimitiveSnapfilter',
     castPtr `Ptr a',
-    id `Ptr NVList' } -> `ZfsError' makeEnum #}
+    id `Ptr NVList' } -> `ZFSError' makeEnum #}
 -}
 
-{#fun zfs_promote as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZfsError' makeEnum #}
+{#fun zfs_promote 
+  { fromZFSHandle `ZFSHandle' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_hold as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_hold 
+  { fromZFSHandle `ZFSHandle',
     `CString',
     `CString',
     `Bool',
-    `CInt' } -> `ZfsError' makeEnum #}
+    `CInt' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_hold_nvl as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_hold_nvl 
+  { fromZFSHandle `ZFSHandle',
     `CInt',
-    `NVList' } -> `ZfsError' makeEnum #}
+    `NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_release as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_release 
+  { fromZFSHandle `ZFSHandle',
     `CString',
     `CString',
-    `Bool' } -> `ZfsError' makeEnum #}
+    `Bool' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_get_holds as ^
-  { fromZfsHandle `ZfsHandle',
-    id `Ptr NVList' } -> `ZfsError' makeEnum #}
+{#fun zfs_get_holds 
+  { fromZFSHandle `ZFSHandle',
+    id `Ptr NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zvol_volsize_to_reservation as ^
+{#fun zvol_volsize_to_reservation 
   { `CULong',
     `NVList' } -> `CULong' #}
 
-type ZfsUserspaceCallback a = Ptr a -> CString -> CInt -> CULong -> IO CInt
+type ZFSUserspaceCallback a = Ptr a -> CString -> CInt -> CULong -> IO CInt
 
 {#enum zfs_userquota_prop_t as UserQuotaProp {underscoreToCase} deriving (Show, Eq) #}
 
-{#fun zfs_userspace as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_userspace 
+  { fromZFSHandle `ZFSHandle',
     `UserQuotaProp',
-    castFunPtr `FunPtr (ZfsUserspaceCallback a)',
-    castPtr `Ptr a' } -> `ZfsError' makeEnum #}
+    castFunPtr `FunPtr (ZFSUserspaceCallback a)',
+    castPtr `Ptr a' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_get_fsacl as ^
-  { fromZfsHandle `ZfsHandle',
-    id `Ptr NVList' } -> `ZfsError' makeEnum #}
+{#fun zfs_get_fsacl 
+  { fromZFSHandle `ZFSHandle',
+    id `Ptr NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_set_fsacl as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_set_fsacl 
+  { fromZFSHandle `ZFSHandle',
     `Bool',
-    `NVList' } -> `ZfsError' makeEnum #}
+    `NVList' } -> `ZFSError' makeEnum #}
 
 {#pointer *recvflags_t as RecvFlags newtype #}
 
-{#fun zfs_receive as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_receive 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     `RecvFlags',
     `CInt',
-    `AVLTree' } -> `ZfsError' makeEnum #}
+    `AVLTree' } -> `ZFSError' makeEnum #}
 
 {#enum diff_flags_t as DiffFlags {underscoreToCase} deriving (Show, Eq)#}
 
-{#fun zfs_show_diffs as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_show_diffs 
+  { fromZFSHandle `ZFSHandle',
     `CInt',
     `CString',
     `CString',
-    `CInt' } -> `ZfsError' makeEnum #}
+    `CInt' } -> `ZFSError' makeEnum #}
 
 -- Miscellaneous functions
-{#fun zfs_type_to_name as ^
-  { `ZfsType' } -> `CString' #}
+{#fun zfs_type_to_name 
+  { `ZFSType' } -> `CString' #}
 
-{#fun zfs_refresh_properties as ^
-  { fromZfsHandle `ZfsHandle' } -> `()' #}
+{#fun zfs_refresh_properties 
+  { fromZFSHandle `ZFSHandle' } -> `()' #}
 
 -- TODO check return type here
-{#fun zfs_name_valid as ^
+{#fun zfs_name_valid 
   { `CString',
-    `ZfsType' } -> `ZfsError' makeEnum #}
+    `ZFSType' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_path_to_zhandle as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_path_to_zhandle 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
-    `ZfsType' } -> `ZfsHandle' toZfsHandle #}
+    `ZFSType' } -> `ZFSHandle' toZFSHandle #}
 
-{#fun zfs_dataset_exists as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_dataset_exists 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
-    `ZfsType' } -> `Bool' #}
+    `ZFSType' } -> `Bool' #}
 
-{#fun zfs_spa_version as ^
-  { fromLibZfsHandle `LibZfsHandle',
-    alloca- `CInt' peek* } -> `ZfsError' makeEnum #}
+{#fun zfs_spa_version 
+  { fromLibZFSHandle `LibZFSHandle',
+    alloca- `CInt' peek* } -> `ZFSError' makeEnum #}
 
-{#fun zfs_append_partition as ^
+{#fun zfs_append_partition 
   { `CString',
     `CULong' } -> `CInt' #}
 
-{#fun zfs_resolve_shortname as ^
+{#fun zfs_resolve_shortname 
   { `CString',
     `CString',
-    `CULong' } -> `ZfsError' makeEnum #}
+    `CULong' } -> `ZFSError' makeEnum #}
 
 -- TODO check return type
-{#fun zfs_strcmp_pathname as ^
+{#fun zfs_strcmp_pathname 
   { `CString',
     `CString',
     `CInt' } -> `CInt' #}
 
 -- Mount support functions.
 
-{#fun is_mounted as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun is_mounted 
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     alloca- `CString' peek*} -> `Bool' toBool #}
 
-{#fun zfs_is_mounted as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_is_mounted 
+  { fromZFSHandle `ZFSHandle',
     alloca- `CString' peek*} -> `Bool' toBool #}
 
-{#fun zfs_mount as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_mount 
+  { fromZFSHandle `ZFSHandle',
     `CString',
-    `CInt' } -> `ZfsError' makeEnum #}
+    `CInt' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_unmount as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_unmount 
+  { fromZFSHandle `ZFSHandle',
     `CString',
-    `CInt' } -> `ZfsError' makeEnum #}
+    `CInt' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_unmountall as ^
-  { fromZfsHandle `ZfsHandle',
-    `CInt' } -> `ZfsError' makeEnum #}
+{#fun zfs_unmountall 
+  { fromZFSHandle `ZFSHandle',
+    `CInt' } -> `ZFSError' makeEnum #}
 
 -- Share support functions.
-{#fun zfs_is_shared as ^
-  { fromZfsHandle `ZfsHandle' } -> `Bool' toBool #}
+{#fun zfs_is_shared 
+  { fromZFSHandle `ZFSHandle' } -> `Bool' toBool #}
 
-{#fun zfs_share as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZfsError' makeEnum #}
+{#fun zfs_share 
+  { fromZFSHandle `ZFSHandle' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_unshare as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZfsError' makeEnum #}
+{#fun zfs_unshare 
+  { fromZFSHandle `ZFSHandle' } -> `ZFSError' makeEnum #}
 
 -- Protocol-specific share support functions.
-{#fun zfs_is_shared_nfs as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_is_shared_nfs 
+  { fromZFSHandle `ZFSHandle',
     alloca- `CString' peek*} -> `Bool' toBool #}
 
-{#fun zfs_is_shared_smb as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_is_shared_smb 
+  { fromZFSHandle `ZFSHandle',
     alloca- `CString' peek*} -> `Bool' toBool #}
 
-{#fun zfs_share_nfs as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZfsError' makeEnum #}
+{#fun zfs_share_nfs
+  { fromZFSHandle `ZFSHandle' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_share_smb as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZfsError' makeEnum #}
+{#fun zfs_share_smb
+  { fromZFSHandle `ZFSHandle' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_unshare_nfs as ^
-  { fromZfsHandle `ZfsHandle',
-    `CString' } -> `ZfsError' makeEnum #}
+{#fun zfs_unshare_nfs
+  { fromZFSHandle `ZFSHandle',
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_unshare_smb as ^
-  { fromZfsHandle `ZfsHandle',
-    `CString' } -> `ZfsError' makeEnum #}
+{#fun zfs_unshare_smb
+  { fromZFSHandle `ZFSHandle',
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_unshareall_nfs as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZfsError' makeEnum #}
+{#fun zfs_unshareall_nfs
+  { fromZFSHandle `ZFSHandle' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_unshareall_smb as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZfsError' makeEnum #}
+{#fun zfs_unshareall_smb
+  { fromZFSHandle `ZFSHandle' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_unshareall_bypath as ^
-  { fromZfsHandle `ZfsHandle',
-    `CString' } -> `ZfsError' makeEnum #}
+{#fun zfs_unshareall_bypath
+  { fromZFSHandle `ZFSHandle',
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_unshareall as ^
-  { fromZfsHandle `ZfsHandle' } -> `ZfsError' makeEnum #}
+{#fun zfs_unshareall
+  { fromZFSHandle `ZFSHandle' } -> `ZFSError' makeEnum #}
 
 {-
-{#fun zfs_deleg_share_nfs as ^
-  { fromZfsHandle `ZfsHandle',
+{#fun zfs_deleg_share_nfs
+  { fromZFSHandle `ZFSHandle',
     `CString',
     `CString',
     `CString',
     `Ptr ()',
     `Ptr ()',
     `CInt',
-    `ZfsShareOp' } -> `ZfsError' makeEnum #}
+    `ZFSShareOp' } -> `ZFSError' makeEnum #}
 -}
 
 -- Utility function to convert a number to a human-readable form.
-{#fun zfs_nicenum as ^
+{#fun zfs_nicenum
   { `CULong',
     `CString',
     `CULong' } -> `()' #}
 
-{#fun zfs_nicestrtonum as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_nicestrtonum
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
-    alloca- `CULong' peek* } -> `ZfsError' makeEnum #}
+    alloca- `CULong' peek* } -> `ZFSError' makeEnum #}
 
 -- Utility functions to run an external process. Probably overkill to support this?
 
@@ -961,73 +961,73 @@ type ZfsUserspaceCallback a = Ptr a -> CString -> CInt -> CULong -> IO CInt
 
 -- | Given a device or file, determine if it is part of a pool.
 -- N.B. CInt should be PoolState, except whether it's valid depends on Bool below
-{#fun zpool_in_use as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zpool_in_use
+  { fromLibZFSHandle `LibZFSHandle',
     `CInt',
     alloca- `CInt' peek*,
     alloca- `CString' peek*,
-    alloca- `Bool' peekBool* } -> `ZfsError' makeEnum #}
+    alloca- `Bool' peekBool* } -> `ZFSError' makeEnum #}
 
 -- Label manipulation
-{#fun zpool_read_label as ^
+{#fun zpool_read_label
   { `CInt',
-    id `Ptr NVList' } -> `ZfsError' makeEnum #}
+    id `Ptr NVList' } -> `ZFSError' makeEnum #}
 
-{#fun zpool_clear_label as ^
-  { `CInt' } -> `ZfsError' makeEnum #}
+{#fun zpool_clear_label
+  { `CInt' } -> `ZFSError' makeEnum #}
 
 -- Management interfaces for SMB ACL files.
-{#fun zfs_smb_acl_add as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_smb_acl_add
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     `CString',
-    `CString' } -> `ZfsError' makeEnum #}
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_smb_acl_remove as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_smb_acl_remove
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     `CString',
-    `CString' } -> `ZfsError' makeEnum #}
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_smb_acl_purge as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_smb_acl_purge
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
-    `CString' } -> `ZfsError' makeEnum #}
+    `CString' } -> `ZFSError' makeEnum #}
 
-{#fun zfs_smb_acl_rename as ^
-  { fromLibZfsHandle `LibZfsHandle',
+{#fun zfs_smb_acl_rename
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     `CString',
     `CString',
-    `CString' } -> `ZfsError' makeEnum #}
+    `CString' } -> `ZFSError' makeEnum #}
 
 -- Mappings between vdev and FRU.
 {-
 {#fun libzfs_fru_refresh
-  { fromLibZfsHandle `LibZfsHandle' } -> `()' #}
+  { fromLibZFSHandle `LibZFSHandle' } -> `()' #}
 
 {#fun libzfs_fru_lookup
-  { fromLibZfsHandle `LibZfsHandle',
+  { fromLibZFSHandle `LibZFSHandle',
     `CString' } -> `CString' #}
 
 {#fun libzfs_fru_devpath
-  { fromLibZfsHandle `LibZfsHandle',
+  { fromLibZFSHandle `LibZFSHandle',
     `CString' } -> `CString' #}
 
 {#fun libzfs_fru_compare
-  { fromLibZfsHandle `LibZfsHandle',
+  { fromLibZFSHandle `LibZFSHandle',
     `CString',
     `CString' } -> `Bool' toBool #}
 
 {#fun libzfs_fru_notself
-  { fromLibZfsHandle `LibZfsHandle',
+  { fromLibZFSHandle `LibZFSHandle',
     `CString' } -> `Bool' toBool #}
 
 -- TODO check return type
 {#fun zpool_fru_set
-  { fromZpoolHandle `ZpoolHandle',
+  { fromZPoolHandle `ZPoolHandle',
     `CULong',
-    `CString' } -> `ZfsError' makeEnum #}
+    `CString' } -> `ZFSError' makeEnum #}
 -}
 
 
