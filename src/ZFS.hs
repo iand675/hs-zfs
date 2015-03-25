@@ -25,10 +25,11 @@ import qualified Data.Text              as T
 import qualified Data.Text.Foreign      as T
 import           Data.Word
 import qualified Foreign.C              as FC
-import           Foreign.Ptr            (nullPtr, freeHaskellFunPtr)
-import qualified Foreign.StablePtr      as S
+import           Foreign.Ptr            (FunPtr, Ptr, nullPtr, freeHaskellFunPtr)
+import           Data.IORef             (newIORef, readIORef, writeIORef)
 import           System.Posix.Types     (Fd(..))
 import qualified ZFS.Primitive          as Z
+import           ZFS.Primitive
 import qualified ZFS.Primitive.FS       as Z
 import qualified ZFS.Primitive.NVPair   as Z
 
@@ -36,6 +37,11 @@ import qualified ZFS.Primitive.NVPair   as Z
 
 initializeZFS = Z.libzfs_init
 finalizeZFS = Z.libzfs_fini
+
+class Dataset a where
+  dataset :: a -> Ptr ()
+
+instance Dataset ZFSHandle where
 
 -- | Get the underlying library handle from pool or filesystem handles
 class GetHandle h where
@@ -97,17 +103,22 @@ getPoolState = Z.zpool_get_state
 
 freeAllPoolHandles = Z.zpool_free_handles
 
-iterateOverPools :: Z.LibZFSHandle -> (Z.ZPoolHandle -> a -> IO Int32) -> a -> IO Int32
+iterateOverPools :: Z.LibZFSHandle -> (Z.ZPoolHandle -> a -> IO (Either b a)) -> a -> IO (Either b a)
 iterateOverPools h f x = do
-  sp <- S.newStablePtr x
-  fp <- Z.wrapZPoolIterator $ \h ptr -> do
-    val <- S.deRefStablePtr $ S.castPtrToStablePtr ptr
+  sp <- newIORef x
+  intermediate <- newIORef $ Right x
+  fp <- Z.wrapZPoolIterator $ \h _ -> do
+    val <- readIORef sp
     r <- f h val
-    return $ FC.CInt r
-  (FC.CInt r) <- Z.zpool_iter h fp (S.castStablePtrToPtr sp)
+    writeIORef intermediate r
+    case r of
+      Left  _ -> return 1
+      Right r -> do
+        writeIORef sp r
+        return 0
+  void $ Z.zpool_iter h fp nullPtr
   freeHaskellFunPtr fp
-  S.freeStablePtr sp
-  return r
+  readIORef intermediate
 
 -- * Functions to create and destroy pools
 
@@ -434,6 +445,102 @@ isPoolInUse h (Fd fd) = do
   return (err, state, name, inUse)
 
 -- ** Label manipulation
+
+iteratorWrapper :: (FunPtr (ZFSIterator a) -> Ptr a -> IO FC.CInt) -> (ZFSHandle -> a -> IO (Either b a)) -> a -> IO (Either b a)
+iteratorWrapper call f startState = do
+  sp <- newIORef startState
+  intermediate <- newIORef $ Right startState
+  fp <- wrapZFSIterator $ \h _ -> do
+    val <- readIORef sp
+    r <- f h val
+    writeIORef intermediate r
+    case r of
+      Left  _ -> return 1
+      Right r -> do
+        writeIORef sp r
+        return 0
+  void $ call fp nullPtr
+  freeHaskellFunPtr fp
+  readIORef intermediate
+
+iterateOverZFSRoot h = iteratorWrapper (zfs_iter_root h)
+
+iterateOverZFSChildren h = iteratorWrapper (zfs_iter_children h)
+
+type AllowRecursion = Bool
+iterateOverZFSDependents  :: ZFSHandle -> AllowRecursion -> (ZFSHandle -> a -> IO (Either b a)) -> a -> IO (Either b a)
+iterateOverZFSDependents h b = iteratorWrapper (zfs_iter_dependents h b)
+
+iterateOverZFSFilesystems h = iteratorWrapper (zfs_iter_filesystems h)
+
+type Simple = Bool
+
+iterateOverZFSSnapshots :: ZFSHandle -> Simple -> (ZFSHandle -> a -> IO (Either b a)) -> a -> IO (Either b a)
+iterateOverZFSSnapshots h b = iteratorWrapper (zfs_iter_snapshots h b)
+
+iterateOverZFSSnapshotsSorted h = iteratorWrapper (zfs_iter_snapshots_sorted h)
+
+type SpecFormat = C.ByteString
+{-
+
+spec is a string like "A,B%C,D"
+
+<snaps>, where <snaps> can be:
+     <snap>          (single snapshot)
+     <snap>%<snap>   (range of snapshots, inclusive)
+     %<snap>         (range of snapshots, starting with earliest)
+     <snap>%         (range of snapshots, ending with last)
+     %               (all snapshots)
+     <snaps>[,...]   (comma separated list of the above)
+
+If a snapshot can not be opened, continue trying to open the others, but
+return ENOENT at the end.
+
+-}
+iterateOverZFSSnapSpec :: ZFSHandle -> SpecFormat -> (ZFSHandle -> a -> IO (Either b a)) -> a -> IO (Either b a)
+iterateOverZFSSnapSpec h orig f x = C.useAsCString orig $ \str -> iteratorWrapper (zfs_iter_snapspec h str) f x
+
+addHandle :: GetAllCallback -> ZFSHandle -> IO ()
+addHandle = error "TODO"
+
+datasetCompare :: (Dataset a, Dataset b) => a -> b -> IO FC.CInt
+datasetCompare x y = libzfs_dataset_cmp (dataset x) (dataset y)
+
+-- ** Functions to create and destroy datasets.
+
+create :: LibZFSHandle -> Path -> Z.ZFSType -> Z.NVList -> IO Z.ZFSError
+create h (Path p) t n = C.useAsCString p $ \str -> zfs_create h str t n
+
+createAncestors :: LibZFSHandle -> Path -> IO Z.ZFSError
+createAncestors h (Path p) = C.useAsCString p $ zfs_create_ancestors h
+
+type Defer = Bool
+
+destroy :: ZFSHandle -> Defer -> IO Z.ZFSError
+destroy = zfs_destroy
+
+newtype SnapshotName = SnapshotName { fromSnapshotName :: C.ByteString }
+
+destroySnaps :: ZFSHandle -> SnapshotName -> Defer -> IO Z.ZFSError
+destroySnaps h (SnapshotName n) d = C.useAsCString n $ \str -> zfs_destroy_snaps h str d
+
+destroySnapsNVL :: LibZFSHandle -> Z.NVList -> Defer -> IO Z.ZFSError
+destroySnapsNVL = zfs_destroy_snaps_nvl
+
+data SnapshotDepth = Shallow | Recursive
+
+snapshot :: Z.LibZFSHandle -> Path -> SnapshotDepth -> Z.NVList -> IO Z.ZFSError
+snapshot h (Path p) d n = C.useAsCString p $ \str -> Z.zfs_snapshot h str (case d of
+  Shallow -> False
+  Recursive -> True) n
+
+snapshotNVL :: LibZFSHandle -> Z.NVList -> Z.NVList -> IO ZFSError
+snapshotNVL h n1 n2 = Z.zfs_snapshot_nvl h n1 n2
+
+type ForceRollback = Bool
+rollback :: ZFSHandle -> ZFSHandle -> ForceRollback -> IO ZFSError
+rollback = zfs_rollback
+
 -- ** Management interfaces for SMB ACL
 
 -- Haskell utilities
