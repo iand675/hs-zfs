@@ -29,7 +29,8 @@ library
   -- include-dirs:        /usr/include/libzfs,
   --                      /usr/include/libspl
   extra-libraries:     zfs
-  build-depends:       base >=4.7 && <4.8, bytestring, text, system-filepath
+  build-depends:       base >=4.7 && <5, bytestring, text
+  -- , system-filepath
   hs-source-dirs:      src
   -- ghc-options:         -pgmPgcc
   cpp-options:         -DHAVE_IOCTL_IN_UNISTD_H -E
